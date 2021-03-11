@@ -37,5 +37,5 @@ do
 		echo 'An error has occured! Aborting the script execution...'
 		exit 1
 	fi
-	echo $file_name+' created successfully!'
+	echo $file_name' created successfully!'
 done
