@@ -1,2 +1,0 @@
-Hello, World of Go!
-It is cool editing files this way, this could be a new file editor in the web lol
