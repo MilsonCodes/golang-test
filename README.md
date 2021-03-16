@@ -1,5 +1,3 @@
 # golang-test
 
-Repository to test Go's various features. 
-
-Adapted from this [tutorial](https://golang.org/doc/articles/wiki/)
+Attempting to create an interface to a manageable file system
