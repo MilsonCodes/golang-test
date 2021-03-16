@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const rootDir = "./files/"
+
+var ext = []string{".txt", ".md", ".html"}
+
 var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html", "templates/all.html"))
 
 var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+))|all/$")
@@ -57,7 +61,7 @@ func getFolderContents(dirName string) []*File {
 // }
 
 func (p *File) save() error {
-	filename := "./files/" + p.Name + ".txt"
+	filename := rootDir + p.Name + ext[0]
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
@@ -67,7 +71,7 @@ func (p *File) print() error {
 }
 
 func loadPage(title string) (*File, error) {
-	filename := "./files/" + title + ".txt"
+	filename := rootDir + title + ext[0]
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -76,7 +80,7 @@ func loadPage(title string) (*File, error) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
-	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+	err := templates.ExecuteTemplate(w, tmpl+ext[2], p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -95,7 +99,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 }
 
 func viewAllHandler(w http.ResponseWriter, r *http.Request, title string) {
-	dir := getFolderContents("./files")
+	dir := getFolderContents(rootDir)
 	renderTemplate(w, "all", dir)
 }
 
@@ -103,7 +107,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	// fmt.Println(title)
 	if err != nil {
-		log.Fatal(err)
+		// log.Fatal(err)
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
