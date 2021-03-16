@@ -107,7 +107,6 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	// fmt.Println(title)
 	if err != nil {
-		// log.Fatal(err)
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
