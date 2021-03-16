@@ -10,12 +10,16 @@ import (
 	"strings"
 )
 
+// Base directory for file storage
 const rootDir = "./files/"
 
+// Some extensions
 var ext = []string{".txt", ".md", ".html"}
 
+// Parse templates from templates folder
 var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html", "templates/all.html"))
 
+// Restrict allowed path
 var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+))|all/$")
 
 // File ... To be displayed as a page with a title and body
@@ -24,6 +28,8 @@ type File struct {
 	Body []byte
 }
 
+// Return the contents of the folder called dirName
+// TODO: Handle recursively exploring folders
 func getFolderContents(dirName string) []*File {
 	dir, err := ioutil.ReadDir(dirName)
 	if err != nil {
@@ -35,9 +41,10 @@ func getFolderContents(dirName string) []*File {
 	for i, file := range dir {
 		if file.IsDir() {
 			// getFolderContents(file.Name(), depth+1)
-			ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name() + "/")}
+			ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name() + "/")} // Temporarily store name in body of file struct
 		} else {
-			fileName := fmt.Sprintf(strings.Split(file.Name(), ".")[0])
+			fileName := fmt.Sprintf(strings.Split(file.Name(), ".")[0]) // Get file name, ignore extension
+			// TODO: Handle multiple extensions
 			ret[i], err = loadPage(fileName)
 			if err != nil {
 				ret[i].print()
@@ -60,16 +67,19 @@ func getFolderContents(dirName string) []*File {
 // 	return m[2], nil
 // }
 
+// Save file, write to system
 func (p *File) save() error {
 	filename := rootDir + p.Name + ext[0]
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
+// Print information to the console
 func (p *File) print() error {
 	_, err := fmt.Printf("Name: %s\nBody: %s\n", p.Name, p.Body)
 	return err
 }
 
+// Read file from the system, then return a struct of the file
 func loadPage(title string) (*File, error) {
 	filename := rootDir + title + ext[0]
 	body, err := ioutil.ReadFile(filename)
@@ -79,6 +89,10 @@ func loadPage(title string) (*File, error) {
 	return &File{Name: title, Body: body}, nil
 }
 
+/*
+* Render the template based on input string and html extension
+* Use p to pass in any data you want to be used in the template
+ */
 func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
 	err := templates.ExecuteTemplate(w, tmpl+ext[2], p)
 	if err != nil {
@@ -86,6 +100,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
 	}
 }
 
+// Handler wrapper to handle errors and validate path (reduce code)
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
