@@ -4,14 +4,14 @@
     <ul>
     {{ range . }}
         {{ if eq .Name "FOLDER" }}
-        <!-- <li>
-            <p>
-                {{ .Name }}
-            </p>
-        </li> -->
+        <li>
+            <a>
+                {{ printf "%s" .Body }}
+            </a>
+        </li>
         {{ else }}
         <li>
-            <a href="/view/{{ .Name }}">View {{ .Name }}</a>
+            <a href="/view/{{.Name}}">View {{ .Name }}</a>
         </li>
         {{ end }}
     {{ end }}

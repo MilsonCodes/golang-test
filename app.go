@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -10,7 +11,8 @@ import (
 )
 
 var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html", "templates/all.html"))
-var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+)|all/)$")
+
+var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+))|all/$")
 
 // File ... To be displayed as a page with a title and body
 type File struct {
@@ -29,10 +31,12 @@ func getFolderContents(dirName string) []*File {
 	for i, file := range dir {
 		if file.IsDir() {
 			// getFolderContents(file.Name(), depth+1)
-			ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name())}
+			ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name() + "/")}
 		} else {
-			ret[i], err = loadPage(strings.Split(file.Name(), ".")[0])
+			fileName := fmt.Sprintf(strings.Split(file.Name(), ".")[0])
+			ret[i], err = loadPage(fileName)
 			if err != nil {
+				ret[i].print()
 				log.Fatal(err)
 			}
 		}
@@ -53,12 +57,17 @@ func getFolderContents(dirName string) []*File {
 // }
 
 func (p *File) save() error {
-	filename := "files/" + p.Name + ".txt"
+	filename := "./files/" + p.Name + ".txt"
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
+func (p *File) print() error {
+	_, err := fmt.Printf("Name: %s\nBody: %s\n", p.Name, p.Body)
+	return err
+}
+
 func loadPage(title string) (*File, error) {
-	filename := "files/" + title + ".txt"
+	filename := "./files/" + title + ".txt"
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -80,7 +89,8 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 			http.NotFound(w, r)
 			return
 		}
-		fn(w, r, m[2])
+		// fmt.Println(m)
+		fn(w, r, m[3])
 	}
 }
 
@@ -91,7 +101,9 @@ func viewAllHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
+	// fmt.Println(title)
 	if err != nil {
+		log.Fatal(err)
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return
 	}
