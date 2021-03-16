@@ -1,17 +1,16 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
-var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html"))
-var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html", "templates/all.html"))
+var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+)|all/)$")
 
 // File ... To be displayed as a page with a title and body
 type File struct {
@@ -19,24 +18,39 @@ type File struct {
 	Body []byte
 }
 
-func getFolderContents(dirName string) ([]string, error) {
-	var ret []string
-	// var fileInfo []fs.FileInfo
-
-	info, err := ioutil.ReadDir(dirName)
-
-	fmt.Println(info)
-	return ret, err
-}
-
-func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-	m := validPath.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		http.NotFound(w, r)
-		return "", errors.New("invalid Page Title")
+func getFolderContents(dirName string) []*File {
+	dir, err := ioutil.ReadDir(dirName)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return m[2], nil
+
+	ret := make([]*File, len(dir))
+
+	for i, file := range dir {
+		if file.IsDir() {
+			// getFolderContents(file.Name(), depth+1)
+			ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name())}
+		} else {
+			ret[i], err = loadPage(strings.Split(file.Name(), ".")[0])
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	// fmt.Println(ret)
+
+	return ret
 }
+
+// func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+// 	m := validPath.FindStringSubmatch(r.URL.Path)
+// 	if m == nil {
+// 		http.NotFound(w, r)
+// 		return "", errors.New("invalid Page Title")
+// 	}
+// 	return m[2], nil
+// }
 
 func (p *File) save() error {
 	filename := "files/" + p.Name + ".txt"
@@ -52,18 +66,30 @@ func loadPage(title string) (*File, error) {
 	return &File{Name: title, Body: body}, nil
 }
 
-func renderTemplate(w http.ResponseWriter, tmpl string, p *File) {
+func renderTemplate(w http.ResponseWriter, tmpl string, p interface{}) {
 	err := templates.ExecuteTemplate(w, tmpl+".html", p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
+func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := validPath.FindStringSubmatch(r.URL.Path)
+		if m == nil {
+			http.NotFound(w, r)
+			return
+		}
+		fn(w, r, m[2])
 	}
+}
+
+func viewAllHandler(w http.ResponseWriter, r *http.Request, title string) {
+	dir := getFolderContents("./files")
+	renderTemplate(w, "all", dir)
+}
+
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
@@ -72,11 +98,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "view", p)
 }
 
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
 		p = &File{Name: title}
@@ -84,14 +106,10 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "edit", p)
 }
 
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	p := &File{Name: title, Body: []byte(body)}
-	err = p.save()
+	err := p.save()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -100,9 +118,10 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	getFolderContents("files")
-	http.HandleFunc("/view/", viewHandler)
-	http.HandleFunc("/edit/", editHandler)
-	http.HandleFunc("/save/", saveHandler)
+	http.HandleFunc("/all/", makeHandler(viewAllHandler))
+	http.HandleFunc("/view/", makeHandler(viewHandler))
+	http.HandleFunc("/edit/", makeHandler(editHandler))
+	http.HandleFunc("/save/", makeHandler(saveHandler))
+
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

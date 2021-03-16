@@ -1,0 +1,19 @@
+<h1>All Files</h1>
+
+<div>
+    <ul>
+    {{ range . }}
+        {{ if eq .Name "FOLDER" }}
+        <!-- <li>
+            <p>
+                {{ .Name }}
+            </p>
+        </li> -->
+        {{ else }}
+        <li>
+            <a href="/view/{{ .Name }}">View {{ .Name }}</a>
+        </li>
+        {{ end }}
+    {{ end }}
+    </ul>
+</div>
