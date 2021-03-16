@@ -1,3 +1,3 @@
 # golang-test
 
-Attempting to create an interface to a manageable file system
+Attempting to create a user interface to a manageable, underlying file system
