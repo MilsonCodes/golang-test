@@ -20,52 +20,56 @@ var ext = []string{".txt", ".md", ".html"}
 var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html", "templates/all.html"))
 
 // Restrict allowed path
-var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+))|all/$")
+var validPath = regexp.MustCompile("^/((edit|save|view)/([a-zA-Z0-9]+))|(all/)$")
 
 // File ... To be displayed as a page with a title and body
 type File struct {
-	Name string
-	Body []byte
+	Name     string
+	Body     []byte
+	Location *Directory
 }
 
+// Directory ... A structure of directory and contents to support multilevel views
+type Directory struct {
+	Name     string
+	Path     string
+	Contents map[string]*File
+	Children map[string]*Directory
+	Parent   string
+}
+
+// Global base directory struct
+var baseDir = Directory{Name: "files", Path: rootDir, Contents: make(map[string]*File), Children: make(map[string]*Directory), Parent: "root"}
+
 // Return the contents of the folder called dirName
-// TODO: Handle recursively exploring folders
-func getFolderContents(dirName string) []*File {
-	dir, err := ioutil.ReadDir(dirName)
+func getFolderContents(dirName Directory) {
+	dir, err := ioutil.ReadDir(dirName.Path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ret := make([]*File, len(dir))
+	// ret := make([]*File, len(dir))
 
-	for i, file := range dir {
+	for _, file := range dir {
 		if file.IsDir() {
-			// getFolderContents(file.Name(), depth+1)
-			ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name() + "/")} // Temporarily store name in body of file struct
+			// ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name() + "/")} // Temporarily store name in body of file struct
+			dir := &Directory{Path: dirName.Path + file.Name() + "/", Name: file.Name(), Contents: make(map[string]*File), Children: make(map[string]*Directory), Parent: dirName.Path}
+			baseDir.Children[file.Name()] = dir
+			getFolderContents(*dir)
 		} else {
 			fileName := fmt.Sprintf(strings.Split(file.Name(), ".")[0]) // Get file name, ignore extension
 			// TODO: Handle multiple extensions
-			ret[i], err = loadPage(fileName)
+			body, err := ioutil.ReadFile(dirName.Path + file.Name())
+			baseDir.Contents[fileName] = &File{Name: file.Name(), Body: body}
 			if err != nil {
-				ret[i].print()
+				// ret[i].print()
 				log.Fatal(err)
 			}
 		}
 	}
 
-	// fmt.Println(ret)
-
-	return ret
+	// fmt.Println(baseDir)
 }
-
-// func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-// 	m := validPath.FindStringSubmatch(r.URL.Path)
-// 	if m == nil {
-// 		http.NotFound(w, r)
-// 		return "", errors.New("invalid Page Title")
-// 	}
-// 	return m[2], nil
-// }
 
 // Save file, write to system
 func (p *File) save() error {
@@ -108,19 +112,17 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 			http.NotFound(w, r)
 			return
 		}
-		// fmt.Println(m)
 		fn(w, r, m[3])
 	}
 }
 
 func viewAllHandler(w http.ResponseWriter, r *http.Request, title string) {
-	dir := getFolderContents(rootDir)
-	renderTemplate(w, "all", dir)
+	getFolderContents(baseDir)
+	renderTemplate(w, "all", baseDir)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
-	// fmt.Println(title)
 	if err != nil {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		return

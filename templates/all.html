@@ -2,18 +2,17 @@
 
 <div>
     <ul>
-    {{ range . }}
-        {{ if eq .Name "FOLDER" }}
-        <li>
-            <a>
-                {{ printf "%s" .Body }}
-            </a>
-        </li>
-        {{ else }}
+    {{ range .Contents }}
         <li>
             <a href="/view/{{.Name}}">View {{ .Name }}</a>
         </li>
-        {{ end }}
+    {{ end }}
+    {{ range .Children }}
+        <li>
+            <a>
+                {{ .Name }}/
+            </a>
+        </li>
     {{ end }}
     </ul>
 </div>
