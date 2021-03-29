@@ -48,12 +48,10 @@ func getFolderContents(dirName Directory) {
 		log.Fatal(err)
 	}
 
-	// ret := make([]*File, len(dir))
-
 	for _, file := range dir {
 		if file.IsDir() {
-			// ret[i] = &File{Name: "FOLDER", Body: []byte(file.Name() + "/")} // Temporarily store name in body of file struct
-			dir := &Directory{Path: dirName.Path + file.Name() + "/", Name: file.Name(), Contents: make(map[string]*File), Children: make(map[string]*Directory), Parent: dirName.Path}
+			path := dirName.Path + file.Name() + "/"
+			dir := &Directory{Path: path, Name: file.Name(), Contents: make(map[string]*File), Children: make(map[string]*Directory), Parent: dirName.Path}
 			baseDir.Children[file.Name()] = dir
 			getFolderContents(*dir)
 		} else {
@@ -62,13 +60,10 @@ func getFolderContents(dirName Directory) {
 			body, err := ioutil.ReadFile(dirName.Path + file.Name())
 			baseDir.Contents[fileName] = &File{Name: file.Name(), Body: body}
 			if err != nil {
-				// ret[i].print()
 				log.Fatal(err)
 			}
 		}
 	}
-
-	// fmt.Println(baseDir)
 }
 
 // Save file, write to system
@@ -150,6 +145,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func main() {
+	// print(runtime.NumCPU())
 	http.HandleFunc("/all/", makeHandler(viewAllHandler))
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
